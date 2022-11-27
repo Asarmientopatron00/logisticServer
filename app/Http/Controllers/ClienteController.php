@@ -1,44 +1,53 @@
 <?php
 
-namespace App\Http\Controllers\Auth;
+namespace App\Http\Controllers;
 
 use Exception;
-use App\Models\Auth\Usuario;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use App\Enum\TipoDocumentoEnum;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 
-class UsuarioController extends Controller
+class ClienteController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     *
+     * @param Request $request
+     * @return Response
+     */
     public function index(Request $request)
     {
         try{
-            $datos = $request->all();
-            if(!($request->ligera)) {
-                $validator = Validator::make($datos, [
+            $data = $request->all();
+            if(!$request->ligera){
+                $validator = Validator::make($data, [
                     'limite' => 'integer|between:1,500'
                 ]);
 
-                if ($validator->fails()) {
+                if($validator->fails()) {
                     return response(
                         get_response_body(format_messages_validator($validator))
                         , Response::HTTP_BAD_REQUEST
                     );
                 }
             }
+
             if($request->ligera){
-                $usuarios = Usuario::getLightList($datos);
+                $clientes = Cliente::getLightList();
             }else{
-                if (isset($datos['ordenar_por'])) {
-                    $datos['ordenar_por'] = format_order_by_attributes($datos);
+                if(isset($data['ordenar_por'])){
+                    $data['ordenar_por'] = format_order_by_attributes($data);
                 }
-                $usuarios = Usuario::getList($datos);
+                $clientes = Cliente::getList($data);
             }
-            return response($usuarios, Response::HTTP_OK);
+            return response($clientes, Response::HTTP_OK);
         }catch(Exception $e){
-            return response(get_response_body([$e->getMessage()]), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -52,49 +61,60 @@ class UsuarioController extends Controller
     {
         DB::beginTransaction(); // Se abre la transacción
         try {
-            $datos = $request->all();
-            $validator = Validator::make($datos, [
-                'nombre' => 'string|required|max:128',
-                'correo_electronico' => 'required|unique:usuarios,correo_electronico',
-                'identificacion_usuario' => 'required|unique:usuarios,identificacion_usuario|unique:users,email',
-                'clave'=> 'required',
+            $data = $request->all();
+            $validator = Validator::make($data, [
+                'tipo_documento' => 'string|required|in:'.join(',', TipoDocumentoEnum::OPTIONS),
+                'numero_documento' => [
+                    'string',
+                    'required',
+                    Rule::unique('clientes')
+                        ->where(fn ($query) => 
+                            $query->where('numero_documento', $data['numero_documento'])
+                        )
+                ],
+                'nombre' => 'string|required|min:1|max:128',
+                'telefono' => 'string|nullable|max:128',
+                'email' => 'string|nullable|email|max:128',
+                'direccion' => 'string|nullable|max:128',
             ]);
+
             if ($validator->fails()) {
                 return response(
                     get_response_body(format_messages_validator($validator))
                     , Response::HTTP_BAD_REQUEST
                 );
             }
+
+            $cliente = Cliente::modifyOrCreate($data);
             
-            $usuario = Usuario::modifyOrCreate($datos);
-            if ($usuario) {
+            if ($cliente) {
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El usuario ha sido creado.", 2], $usuario),
+                    get_response_body(["El cliente ha sido creado.", 2], $cliente),
                     Response::HTTP_CREATED
                 );
             } else {
                 DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                return response(get_response_body(["Ocurrió un error al intentar crear el usuario."]), Response::HTTP_CONFLICT);
+                return response(get_response_body(["Ocurrió un error al intentar crear el cliente."]), Response::HTTP_CONFLICT);
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-            return response(get_response_body([$e->getMessage()]), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response(null, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Seguridad\Usuario  $usuario
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
         try{
-            $datos['id'] = $id;
-            $validator = Validator::make($datos, [
-                'id' => 'integer|required|exists:usuarios,id'
+            $data['id'] = $id;
+            $validator = Validator::make($data, [
+                'id' => 'integer|required|exists:clientes,id'
             ]);
 
             if($validator->fails()) {
@@ -103,10 +123,10 @@ class UsuarioController extends Controller
                     , Response::HTTP_BAD_REQUEST
                 );
             }
-            $usuario = Usuario::show($id);
-            return response($usuario, Response::HTTP_OK);
+
+            return response(Cliente::show($id), Response::HTTP_OK);
         }catch (Exception $e){
-            return response($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response(null, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -114,51 +134,49 @@ class UsuarioController extends Controller
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Seguridad\Usuario  $usuario
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
         DB::beginTransaction(); // Se abre la transacción
         try{
-            $datos = $request->all();
-            $datos['id'] = $id;
-            if(!$request->cambio_clave){
-                $validations = [
-                    'id' => 'integer|required|exists:usuarios,id',
-                    'nombre' => 'string|required|min:3|max:128',
-                    'correo_electronico' => 'unique:usuarios,correo_electronico,'.$id,
-                    'estado' => 'boolean',
-                    'identificacion_usuario' => 'unique:usuarios,identificacion_usuario,' .$id,
-                ];
-            }
+            $data = $request->all();
+            $data['id'] = $id;
+            $validator = Validator::make($data, [
+                'id' => 'integer|required|exists:clientes,id',
+                'tipo_documento' => 'string|required|in:'.join(',', TipoDocumentoEnum::OPTIONS),
+                'numero_documento' => [
+                    'string',
+                    'required',
+                    Rule::unique('clientes')
+                        ->where(fn ($query) => 
+                            $query->where('numero_documento', $data['numero_documento'])
+                        )->ignore(Cliente::find($id))
+                ],
+                'nombre' => 'string|required|min:1|max:128',
+                'telefono' => 'string|nullable|max:128',
+                'email' => 'string|nullable|email|max:128',
+                'direccion' => 'string|nullable|max:128',
+            ]);
 
-            $validator = Validator::make($datos, $validations);
             if($validator->fails()) {
                 return response(
                     get_response_body(format_messages_validator($validator))
                     , Response::HTTP_BAD_REQUEST
                 );
             }
-            if($request->cambio_clave){
-                Usuario::cambiarClave($id, $datos);
+
+            $cliente = Cliente::modifyOrCreate($data);
+            if($cliente){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["La contraseña ha sido modificada."]),
+                    get_response_body(["El cliente ha sido modificado.", 1], $cliente),
                     Response::HTTP_OK
                 );
-            }else{
-                $usuario = Usuario::modifyOrCreate($datos);
-                if($usuario){
-                    DB::commit(); // Se cierra la transacción correctamente
-                    return response(
-                        get_response_body(["El usuario ha sido modificado.", 1], $usuario),
-                        Response::HTTP_OK
-                    );
-                } else {
-                    DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                    return response(get_response_body(["Ocurrió un error al intentar modificar el usuario."]), Response::HTTP_CONFLICT);;
-                }
+            } else {
+                DB::rollback(); // Se devuelven los cambios, por que la transacción falla
+                return response(get_response_body(["Ocurrió un error al intentar modificar el cliente."]), Response::HTTP_CONFLICT);;
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla
@@ -169,35 +187,35 @@ class UsuarioController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Seguridad\Usuario  $usuario
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         DB::beginTransaction(); // Se abre la transacción
         try{
-            $datos['id'] = $id;
-            $validator = Validator::make($datos, [
-                'id' => 'integer|required|exists:usuarios,id'
+            $data['id'] = $id;
+            $validator = Validator::make($data, [
+                'id' => 'integer|required|exists:clientes,id'
             ]);
-                
+
             if($validator->fails()) {
                 return response(
                     get_response_body(format_messages_validator($validator))
                     , Response::HTTP_BAD_REQUEST
                 );
             }
-            
-            $eliminado = Usuario::destroy($id);
+
+            $eliminado = Cliente::destroy($id);
             if($eliminado){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El usuario ha sido eliminado.", 3]),
+                    get_response_body(["El cliente ha sido eliminado.", 3]),
                     Response::HTTP_OK
                 );
             }else{
                 DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                return response(get_response_body(["Ocurrió un error al intentar elimnar el usuario."]), Response::HTTP_CONFLICT);
+                return response(get_response_body(["Ocurrió un error al intentar eliminar el cliente."]), Response::HTTP_CONFLICT);
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla

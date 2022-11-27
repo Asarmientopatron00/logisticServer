@@ -23,7 +23,7 @@ class Usuario extends Model
         'user_id',
     ];
 
-    public static function cargar($id)
+    public static function show($id)
     {
         $usuario = Usuario::find($id);
         return [
@@ -36,7 +36,7 @@ class Usuario extends Model
         ];
     }
 
-    public static function modificarOCrear($dto)
+    public static function modifyOrCreate($dto)
     {
         $user = Auth::user(); 
         $usuario = isset($dto['id']) ? Usuario::find($dto['id']) : new Usuario();
@@ -61,7 +61,7 @@ class Usuario extends Model
         }
         $usuario->fill($dto);
         $usuario->save();
-        return Usuario::cargar($usuario->id);
+        return Usuario::show($usuario->id);
     }
 
     public function user(){
@@ -72,7 +72,7 @@ class Usuario extends Model
         return Usuario::where('identificacion_usuario', $identificacionUsuario)->first();
     }
 
-    public static function obtenerColeccionLigera($dto){        
+    public static function getLightList($dto){        
         $query = DB::table('usuarios')
             ->select(
                 'id', 
@@ -81,7 +81,7 @@ class Usuario extends Model
         return $query->get();
     }
 
-    public static function obtenerColeccion($dto){
+    public static function getList($dto){
         $query = DB::table('usuarios')
             ->select(
                 'usuarios.id',
@@ -154,7 +154,7 @@ class Usuario extends Model
         return $user->save();
     }
 
-    public static function eliminar($id)
+    public static function destroy($id)
     {
         $usuario = Usuario::find($id);
 

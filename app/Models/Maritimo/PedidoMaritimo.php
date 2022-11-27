@@ -1,21 +1,21 @@
 <?php
 
-namespace App\Models\Terrestre;
+namespace App\Models\Maritimo;
 
 use Carbon\Carbon;
 use App\Models\Cliente;
-use App\Models\Terrestre\Vehiculo;
+use App\Models\Maritimo\Vehiculo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Terrestre\PedidoTerrestre;
-use App\Models\Terrestre\TipoProductoTerrestre;
+use App\Models\Maritimo\PedidoMaritimo;
+use App\Models\Maritimo\TipoProductoTerrestre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class PedidoTerrestre extends Model
+class PedidoMaritimo extends Model
 {
     use HasFactory;
 
-    protected $table = 'pedidos_terrestres';
+    protected $table = 'pedidos_maritimos';
 
     protected $fillable = [
         'cliente_id',
@@ -23,10 +23,10 @@ class PedidoTerrestre extends Model
         'cantidad_producto',
         'fecha_registro',
         'fecha_entrega',
-        'bodega_id',
+        'puerto_id',
         'precio_envio',
         'descuento',
-        'vehiculo_id',
+        'flota_id',
         'guia',
         'estado',
     ];
@@ -36,19 +36,19 @@ class PedidoTerrestre extends Model
     }
 
     public function tipoProducto(){
-        return $this->belongsTo(TipoProductoTerrestre::class, 'tipo_producto_id');
+        return $this->belongsTo(TipoProductoMaritimo::class, 'tipo_producto_id');
     }
 
-    public function bodega(){
-        return $this->belongsTo(Bodega::class, 'bodega_id');
+    public function puerto(){
+        return $this->belongsTo(Puerto::class, 'puerto_id');
     }
 
-    public function vehiculo(){
-        return $this->belongsTo(Vehiculo::class, 'vehiculo_id');
+    public function flota(){
+        return $this->belongsTo(Flota::class, 'flota_id');
     }
 
     public static function getLightList(){
-        $list = PedidoTerrestre::select(
+        $list = PedidoMaritimo::select(
                 'id',
                 'guia AS nombre',
             )
@@ -57,11 +57,11 @@ class PedidoTerrestre extends Model
     }
 
     public static function getList($dto){
-        $query = DB::table('pedidos_terrestres AS mt')
+        $query = DB::table('pedidos_maritimos AS mt')
             ->join('clientes AS t1', 't1.id', 'mt.cliente_id')
-            ->join('tipos_productos_terrestres AS t2', 't2.id', 'mt.tipo_producto_id')
-            ->join('bodegas AS t3', 't3.id', 'mt.bodega_id')
-            ->join('vehiculos AS t4', 't4.id', 'mt.vehiculo_id')
+            ->join('tipos_productos_maritimos AS t2', 't2.id', 'mt.tipo_producto_id')
+            ->join('puertos AS t3', 't3.id', 'mt.puerto_id')
+            ->join('flotas AS t4', 't4.id', 'mt.flota_id')
             ->select(
                 'mt.id',
                 'mt.guia',
@@ -75,10 +75,10 @@ class PedidoTerrestre extends Model
                 't1.id AS cliente_id',
                 't2.nombre AS tipo_producto',
                 't2.id AS tipo_producto_id',
-                't3.nombre AS bodega',
-                't3.id AS bodega_id',
-                't4.placa AS vehiculo',
-                't4.id AS vehiculo_id',
+                't3.nombre AS puerto',
+                't3.id AS puerto_id',
+                't4.numero AS flota',
+                't4.id AS flota_id',
                 'mt.created_at AS fecha_creacion',
                 'mt.updated_at AS fecha_modificacion'
             );
@@ -128,11 +128,11 @@ class PedidoTerrestre extends Model
 
     public static function show($id)
     {
-        $pedido = PedidoTerrestre::find($id);
+        $pedido = PedidoMaritimo::find($id);
         $cliente = $pedido->cliente;
         $tipoProducto = $pedido->tipoProducto;
-        $bodega = $pedido->bodega;
-        $vehiculo = $pedido->vehiculo;
+        $puerto = $pedido->puerto;
+        $flota = $pedido->flota;
 
         return [
             'id' => $pedido->id,
@@ -153,13 +153,13 @@ class PedidoTerrestre extends Model
                 'id' => $tipoProducto->id,
                 'nombre' => $tipoProducto->nombre
             ] : null,
-            'bodega' => isset($bodega) ? [
-                'id' => $bodega->id,
-                'nombre' => $bodega->nombre
+            'puerto' => isset($puerto) ? [
+                'id' => $puerto->id,
+                'nombre' => $puerto->nombre
             ] : null,
-            'vehiculo' => isset($vehiculo) ? [
-                'id' => $vehiculo->id,
-                'placa' => $vehiculo->placa
+            'flota' => isset($flota) ? [
+                'id' => $flota->id,
+                'placa' => $flota->placa
             ] : null,
         ];
     }
@@ -167,11 +167,11 @@ class PedidoTerrestre extends Model
     public static function modifyOrCreate($dto)
     {
         // If an Id is set, is an updte. Otherwise, is a new reg.
-        $pedido = isset($dto['id']) ? PedidoTerrestre::find($dto['id']) : new PedidoTerrestre();
+        $pedido = isset($dto['id']) ? PedidoMaritimo::find($dto['id']) : new PedidoMaritimo();
         if(!isset($dto['id'])){
             while(true){
                 $guia = strtoupper(substr(uniqid(), 0, 10));
-                $exist = PedidoTerrestre::where('guia', $guia)->first();
+                $exist = PedidoMaritimo::where('guia', $guia)->first();
                 if(!$exist){
                     break;
                 }
@@ -180,13 +180,13 @@ class PedidoTerrestre extends Model
         }
         $pedido->fill($dto);
         $pedido->save();
-        return PedidoTerrestre::show($pedido->id);
+        return PedidoMaritimo::show($pedido->id);
     }
 
     public static function destroy($id)
     {
         // find the object
-        $pedido = PedidoTerrestre::find($id);
+        $pedido = PedidoMaritimo::find($id);
         return $pedido->delete();
     }
 }

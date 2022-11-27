@@ -1,17 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Terrestre;
+namespace App\Http\Controllers\Maritimo;
 
-use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use App\Enum\EstadoPedidoEnum;
+use Illuminate\Validation\Rule;
+use App\Models\Maritimo\Flota;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
-use App\Models\Terrestre\PedidoTerrestre;
 use Illuminate\Support\Facades\Validator;
 
-class PedidoTerrestreController extends Controller
+class FlotaController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -37,14 +36,14 @@ class PedidoTerrestreController extends Controller
             }
 
             if($request->ligera){
-                $pedidosTerrestres = PedidoTerrestre::getLightList();
+                $flotas = Flota::getLightList();
             }else{
                 if(isset($data['ordenar_por'])){
                     $data['ordenar_por'] = format_order_by_attributes($data);
                 }
-                $pedidosTerrestres = PedidoTerrestre::getList($data);
+                $flotas = Flota::getList($data);
             }
-            return response($pedidosTerrestres, Response::HTTP_OK);
+            return response($flotas, Response::HTTP_OK);
         }catch(Exception $e){
             return response($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -62,16 +61,18 @@ class PedidoTerrestreController extends Controller
         try {
             $data = $request->all();
             $validator = Validator::make($data, [
-                'cliente_id' => 'integer|required|exists:clientes,id',
-                'tipo_producto_id' => 'integer|required|exists:tipos_productos_terrestres,id',
-                'cantidad_producto' => 'integer|required|min:0',
-                'fecha_registro' => 'date|required',
-                'fecha_entrega' => 'date|required|after_or_equal:fecha_registro',
-                'bodega_id' => 'integer|required|exists:bodegas,id',
-                'precio_envio' => 'numeric|required',
-                'descuento' => 'numeric|required',
-                'vehiculo_id' => 'integer|required|exists:vehiculos,id',
-                'estado' => 'string|required|in:'.join(',', EstadoPedidoEnum::OPTIONS),
+                'numero' => [
+                    'string',
+                    'required',
+                    'max:8',
+                    'min:8',
+                    'regex:/^[a-zA-Z]{3}[0-9]{4}[a-zA-Z]{1}/',
+                    Rule::unique('flotas')
+                        ->where(fn ($query) => 
+                            $query->where('numero', $data['numero'])
+                        )
+                ],
+                'nombre' => 'string|required|max:128',
             ]);
 
             if ($validator->fails()) {
@@ -81,17 +82,17 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $pedidoTerrestre = PedidoTerrestre::modifyOrCreate($data);
+            $flota = Flota::modifyOrCreate($data);
             
-            if ($pedidoTerrestre) {
+            if ($flota) {
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El pedido ha sido creado.", 2], $pedidoTerrestre),
+                    get_response_body(["La flota ha sido creada.", 2], $flota),
                     Response::HTTP_CREATED
                 );
             } else {
                 DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                return response(get_response_body(["Ocurrió un error al intentar crear el pedido."]), Response::HTTP_CONFLICT);
+                return response(get_response_body(["Ocurrió un error al intentar crear la flota."]), Response::HTTP_CONFLICT);
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla
@@ -110,7 +111,7 @@ class PedidoTerrestreController extends Controller
         try{
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id'
+                'id' => 'integer|required|exists:flotas,id'
             ]);
 
             if($validator->fails()) {
@@ -120,7 +121,7 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            return response(PedidoTerrestre::show($id), Response::HTTP_OK);
+            return response(Flota::show($id), Response::HTTP_OK);
         }catch (Exception $e){
             return response(null, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -140,17 +141,19 @@ class PedidoTerrestreController extends Controller
             $data = $request->all();
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id',
-                'cliente_id' => 'integer|required|exists:clientes,id',
-                'tipo_producto_id' => 'integer|required|exists:tipos_productos_terrestres,id',
-                'cantidad_producto' => 'integer|required|min:0',
-                'fecha_registro' => 'date|required',
-                'fecha_entrega' => 'date|required|after_or_equal:fecha_registro',
-                'bodega_id' => 'integer|required|exists:bodegas,id',
-                'precio_envio' => 'numeric|required',
-                'descuento' => 'numeric|required',
-                'vehiculo_id' => 'integer|required|exists:vehiculos,id',
-                'estado' => 'string|required|in:'.join(',', EstadoPedidoEnum::OPTIONS),
+                'id' => 'integer|required|exists:flotas,id',
+                'numero' => [
+                    'string',
+                    'required',
+                    'max:8',
+                    'min:8',
+                    'regex:/^[a-zA-Z]{3}[0-9]{4}[a-zA-Z]{1}/',
+                    Rule::unique('flotas')
+                        ->where(fn ($query) => 
+                            $query->where('numero', $data['numero'])
+                        )->ignore(Flota::find($id))
+                ],
+                'nombre' => 'string|required|max:128',
             ]);
 
             if($validator->fails()) {
@@ -160,16 +163,16 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $pedidoTerrestre = PedidoTerrestre::modifyOrCreate($data);
-            if($pedidoTerrestre){
+            $flota = Flota::modifyOrCreate($data);
+            if($flota){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El pedido ha sido modificado.", 1], $pedidoTerrestre),
+                    get_response_body(["La flota ha sido modificada.", 1], $flota),
                     Response::HTTP_OK
                 );
             } else {
                 DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                return response(get_response_body(["Ocurrió un error al intentar modificar la bodega."]), Response::HTTP_CONFLICT);;
+                return response(get_response_body(["Ocurrió un error al intentar modificar la flota."]), Response::HTTP_CONFLICT);;
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla
@@ -189,7 +192,7 @@ class PedidoTerrestreController extends Controller
         try{
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id'
+                'id' => 'integer|required|exists:flotas,id'
             ]);
 
             if($validator->fails()) {
@@ -199,16 +202,16 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $eliminado = PedidoTerrestre::destroy($id);
+            $eliminado = Flota::destroy($id);
             if($eliminado){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El pedido ha sido eliminado.", 3]),
+                    get_response_body(["La flota ha sido eliminada.", 3]),
                     Response::HTTP_OK
                 );
             }else{
                 DB::rollback(); // Se devuelven los cambios, por que la transacción falla
-                return response(get_response_body(["Ocurrió un error al intentar eliminar la bodega."]), Response::HTTP_CONFLICT);
+                return response(get_response_body(["Ocurrió un error al intentar eliminar la flota."]), Response::HTTP_CONFLICT);
             }
         }catch (Exception $e){
             DB::rollback(); // Se devuelven los cambios, por que la transacción falla

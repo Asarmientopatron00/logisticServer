@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Terrestre;
+namespace App\Http\Controllers\Maritimo;
 
 use Exception;
 use Illuminate\Http\Request;
@@ -8,10 +8,10 @@ use Illuminate\Http\Response;
 use App\Enum\EstadoPedidoEnum;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
-use App\Models\Terrestre\PedidoTerrestre;
+use App\Models\Maritimo\PedidoMaritimo;
 use Illuminate\Support\Facades\Validator;
 
-class PedidoTerrestreController extends Controller
+class PedidoMaritimoController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -37,14 +37,14 @@ class PedidoTerrestreController extends Controller
             }
 
             if($request->ligera){
-                $pedidosTerrestres = PedidoTerrestre::getLightList();
+                $pedidosMaritimos = PedidoMaritimo::getLightList();
             }else{
                 if(isset($data['ordenar_por'])){
                     $data['ordenar_por'] = format_order_by_attributes($data);
                 }
-                $pedidosTerrestres = PedidoTerrestre::getList($data);
+                $pedidosMaritimos = PedidoMaritimo::getList($data);
             }
-            return response($pedidosTerrestres, Response::HTTP_OK);
+            return response($pedidosMaritimos, Response::HTTP_OK);
         }catch(Exception $e){
             return response($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -63,14 +63,14 @@ class PedidoTerrestreController extends Controller
             $data = $request->all();
             $validator = Validator::make($data, [
                 'cliente_id' => 'integer|required|exists:clientes,id',
-                'tipo_producto_id' => 'integer|required|exists:tipos_productos_terrestres,id',
+                'tipo_producto_id' => 'integer|required|exists:tipos_productos_maritimos,id',
                 'cantidad_producto' => 'integer|required|min:0',
                 'fecha_registro' => 'date|required',
                 'fecha_entrega' => 'date|required|after_or_equal:fecha_registro',
-                'bodega_id' => 'integer|required|exists:bodegas,id',
+                'puerto_id' => 'integer|required|exists:puertos,id',
                 'precio_envio' => 'numeric|required',
                 'descuento' => 'numeric|required',
-                'vehiculo_id' => 'integer|required|exists:vehiculos,id',
+                'flota_id' => 'integer|required|exists:flotas,id',
                 'estado' => 'string|required|in:'.join(',', EstadoPedidoEnum::OPTIONS),
             ]);
 
@@ -81,12 +81,12 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $pedidoTerrestre = PedidoTerrestre::modifyOrCreate($data);
+            $pedidoMaritimo = PedidoMaritimo::modifyOrCreate($data);
             
-            if ($pedidoTerrestre) {
+            if ($pedidoMaritimo) {
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El pedido ha sido creado.", 2], $pedidoTerrestre),
+                    get_response_body(["El pedido ha sido creado.", 2], $pedidoMaritimo),
                     Response::HTTP_CREATED
                 );
             } else {
@@ -110,7 +110,7 @@ class PedidoTerrestreController extends Controller
         try{
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id'
+                'id' => 'integer|required|exists:pedidos_maritimos,id'
             ]);
 
             if($validator->fails()) {
@@ -120,7 +120,7 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            return response(PedidoTerrestre::show($id), Response::HTTP_OK);
+            return response(PedidoMaritimo::show($id), Response::HTTP_OK);
         }catch (Exception $e){
             return response(null, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -140,16 +140,16 @@ class PedidoTerrestreController extends Controller
             $data = $request->all();
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id',
+                'id' => 'integer|required|exists:pedidos_maritimos,id',
                 'cliente_id' => 'integer|required|exists:clientes,id',
-                'tipo_producto_id' => 'integer|required|exists:tipos_productos_terrestres,id',
+                'tipo_producto_id' => 'integer|required|exists:tipos_productos_maritimos,id',
                 'cantidad_producto' => 'integer|required|min:0',
                 'fecha_registro' => 'date|required',
                 'fecha_entrega' => 'date|required|after_or_equal:fecha_registro',
-                'bodega_id' => 'integer|required|exists:bodegas,id',
+                'puerto_id' => 'integer|required|exists:puertos,id',
                 'precio_envio' => 'numeric|required',
                 'descuento' => 'numeric|required',
-                'vehiculo_id' => 'integer|required|exists:vehiculos,id',
+                'flota_id' => 'integer|required|exists:flotas,id',
                 'estado' => 'string|required|in:'.join(',', EstadoPedidoEnum::OPTIONS),
             ]);
 
@@ -160,11 +160,11 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $pedidoTerrestre = PedidoTerrestre::modifyOrCreate($data);
-            if($pedidoTerrestre){
+            $pedidoMaritimo = PedidoMaritimo::modifyOrCreate($data);
+            if($pedidoMaritimo){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(
-                    get_response_body(["El pedido ha sido modificado.", 1], $pedidoTerrestre),
+                    get_response_body(["El pedido ha sido modificado.", 1], $pedidoMaritimo),
                     Response::HTTP_OK
                 );
             } else {
@@ -189,7 +189,7 @@ class PedidoTerrestreController extends Controller
         try{
             $data['id'] = $id;
             $validator = Validator::make($data, [
-                'id' => 'integer|required|exists:pedidos_terrestres,id'
+                'id' => 'integer|required|exists:pedidos_maritimos,id'
             ]);
 
             if($validator->fails()) {
@@ -199,7 +199,7 @@ class PedidoTerrestreController extends Controller
                 );
             }
 
-            $eliminado = PedidoTerrestre::destroy($id);
+            $eliminado = PedidoMaritimo::destroy($id);
             if($eliminado){
                 DB::commit(); // Se cierra la transacción correctamente
                 return response(

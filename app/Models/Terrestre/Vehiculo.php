@@ -50,20 +50,20 @@ class Vehiculo extends Model
             array_push($data, $vehiculo);
         }
 
-        $cantidadBodegas = count($vehiculos);
-        $to = isset($vehiculos) && $cantidadBodegas > 0 ? $vehiculos->currentPage() * $vehiculos->perPage() : null;
-        $to = isset($to) && isset($vehiculos) && $to > $vehiculos->total() && $cantidadBodegas> 0 ? $vehiculos->total() : $to;
-        $from = isset($to) && isset($vehiculos) && $cantidadBodegas > 0 ?
-            ( $vehiculos->perPage() > $to ? 1 : ($to - $cantidadBodegas) + 1 )
+        $cantidadVehiculos = count($vehiculos);
+        $to = isset($vehiculos) && $cantidadVehiculos > 0 ? $vehiculos->currentPage() * $vehiculos->perPage() : null;
+        $to = isset($to) && isset($vehiculos) && $to > $vehiculos->total() && $cantidadVehiculos> 0 ? $vehiculos->total() : $to;
+        $from = isset($to) && isset($vehiculos) && $cantidadVehiculos > 0 ?
+            ( $vehiculos->perPage() > $to ? 1 : ($to - $cantidadVehiculos) + 1 )
             : null;
         return [
             'datos' => $data,
             'desde' => $from,
             'hasta' => $to,
-            'por_pagina' => isset($vehiculos) && $cantidadBodegas > 0 ? +$vehiculos->perPage() : 0,
-            'pagina_actual' => isset($vehiculos) && $cantidadBodegas > 0 ? $vehiculos->currentPage() : 1,
-            'ultima_pagina' => isset($vehiculos) && $cantidadBodegas > 0 ? $vehiculos->lastPage() : 0,
-            'total' => isset($vehiculos) && $cantidadBodegas > 0 ? $vehiculos->total() : 0
+            'por_pagina' => isset($vehiculos) && $cantidadVehiculos > 0 ? +$vehiculos->perPage() : 0,
+            'pagina_actual' => isset($vehiculos) && $cantidadVehiculos > 0 ? $vehiculos->currentPage() : 1,
+            'ultima_pagina' => isset($vehiculos) && $cantidadVehiculos > 0 ? $vehiculos->lastPage() : 0,
+            'total' => isset($vehiculos) && $cantidadVehiculos > 0 ? $vehiculos->total() : 0
         ];
     }
 
